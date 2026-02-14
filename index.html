@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOID - Generative Meditation</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { overflow: hidden; background: #000; cursor: crosshair; font-family: 'Segoe UI', sans-serif; }
+        canvas { display: block; }
+
+        .ui {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+            max-height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        .ui:hover { opacity: 1; }
+
+        .btn {
+            padding: 8px 16px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: rgba(255,255,255,0.8);
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: all 0.2s;
+            backdrop-filter: blur(10px);
+            text-align: left;
+        }
+        .btn:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.3);
+            color: white;
+        }
+        .btn.active {
+            background: rgba(255,255,255,0.15);
+            border-color: rgba(255,255,255,0.4);
+        }
+        .btn .key {
+            display: inline-block;
+            background: rgba(255,255,255,0.1);
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+            font-size: 9px;
+        }
+
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: rgba(0,0,0,0.6);
+            border: 1px solid rgba(255,255,255,0.15);
+            backdrop-filter: blur(10px);
+        }
+        .control-row label {
+            color: rgba(255,255,255,0.6);
+            font-size: 10px;
+            letter-spacing: 1px;
+            min-width: 40px;
+        }
+        .control-row input[type="range"] {
+            width: 80px;
+            height: 4px;
+            -webkit-appearance: none;
+            background: rgba(255,255,255,0.2);
+            border-radius: 2px;
+            cursor: pointer;
+        }
+        .control-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 50%;
+        }
+
+        .select-row {
+            display: flex;
+            gap: 4px;
+            flex-wrap: wrap;
+        }
+        .select-btn {
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.6);
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .select-btn:hover, .select-btn.active {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+
+        .tooltip {
+            position: relative;
+        }
+        .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background: rgba(0,0,0,0.9);
+            color: rgba(255,255,255,0.8);
+            font-size: 10px;
+            line-height: 1.4;
+            padding: 10px;
+            border-radius: 5px;
+            position: absolute;
+            right: 105%;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 200;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        .tooltip:hover .tooltip-text { visibility: visible; }
+
+        .info {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            color: rgba(255,255,255,0.25);
+            font-size: 10px;
+            letter-spacing: 1px;
+            transition: opacity 0.3s;
+        }
+        .info.hide { opacity: 0; }
+
+        .restore-hint {
+            position: fixed;
+            bottom: 50%;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255,255,255,0.3);
+            font-size: 12px;
+            letter-spacing: 2px;
+            animation: fadeInOut 3s ease-in-out;
+        }
+        @keyframes fadeInOut {
+            0%, 100% { opacity: 0; }
+            20%, 80% { opacity: 1; }
+        }
+
+        .brand {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.15);
+            font-size: 10px;
+            letter-spacing: 2px;
+        }
+
+        .breath-guide {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 50;
+            text-align: center;
+        }
+        .breath-ring {
+            width: 150px;
+            height: 150px;
+            border: 2px solid rgba(255,255,255,0.2);
+            border-radius: 50%;
+            margin: 0 auto 20px;
+            transition: transform 4s ease-in-out, border-color 0.5s;
+        }
+        .breath-ring.inhale {
+            transform: scale(1.5);
+            border-color: rgba(100,200,255,0.4);
+        }
+        .breath-ring.hold { border-color: rgba(255,200,100,0.4); }
+        .breath-ring.exhale {
+            transform: scale(1);
+            border-color: rgba(150,100,255,0.4);
+        }
+        .breath-text {
+            color: rgba(255,255,255,0.5);
+            font-size: 14px;
+            letter-spacing: 3px;
+        }
+        .breath-guide.hidden { display: none; }
+
+        .timer-display {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) translateY(-100px);
+            color: rgba(255,255,255,0.15);
+            font-size: 48px;
+            font-weight: 200;
+            letter-spacing: 5px;
+            pointer-events: none;
+            z-index: 49;
+        }
+        .timer-display.hidden { display: none; }
+
+        .session-complete {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 300;
+        }
+        .session-complete h2 {
+            font-size: 36px;
+            font-weight: 200;
+            letter-spacing: 10px;
+            color: white;
+            margin-bottom: 20px;
+        }
+        .session-complete p {
+            color: rgba(255,255,255,0.5);
+            font-size: 14px;
+            letter-spacing: 2px;
+            margin-bottom: 40px;
+        }
+        .session-complete .stats-box {
+            background: rgba(255,255,255,0.05);
+            padding: 30px 50px;
+            border-radius: 10px;
+            margin-bottom: 40px;
+            text-align: center;
+        }
+        .session-complete .stat-value {
+            font-size: 48px;
+            font-weight: 200;
+            color: white;
+        }
+        .session-complete .stat-label {
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 2px;
+        }
+        .session-complete.hidden { display: none; }
+
+        .start-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 200;
+        }
+        .start-overlay h1 {
+            font-size: 72px;
+            font-weight: 200;
+            letter-spacing: 30px;
+            margin-bottom: 10px;
+            color: white;
+        }
+        .start-overlay .tagline {
+            font-size: 12px;
+            letter-spacing: 4px;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 60px;
+        }
+        .start-btn {
+            padding: 18px 60px;
+            font-size: 12px;
+            letter-spacing: 4px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .start-btn:hover {
+            background: white;
+            color: black;
+        }
+        .start-overlay .hint {
+            position: absolute;
+            bottom: 40px;
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 1px;
+        }
+        .start-overlay .total-time {
+            position: absolute;
+            bottom: 70px;
+            font-size: 11px;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 1px;
+        }
+        .lang-switch {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 8px;
+        }
+        .lang-btn {
+            padding: 6px 12px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .lang-btn:hover, .lang-btn.active {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        /* チュートリアル */
+        .tutorial-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 250;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .tutorial-content {
+            max-width: 600px;
+            padding: 40px;
+            text-align: center;
+        }
+        .tutorial-content h2 {
+            font-size: 28px;
+            font-weight: 200;
+            letter-spacing: 8px;
+            color: white;
+            margin-bottom: 40px;
+        }
+        .tutorial-steps {
+            text-align: left;
+            margin-bottom: 40px;
+        }
+        .tutorial-step {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            color: rgba(255,255,255,0.7);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+        .tutorial-step-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            flex-shrink: 0;
+            font-size: 14px;
+        }
+        .tutorial-step-text strong {
+            color: white;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .tutorial-nav {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            align-items: center;
+        }
+        .tutorial-dots {
+            display: flex;
+            gap: 8px;
+            margin: 0 20px;
+        }
+        .tutorial-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .tutorial-dot.active { background: white; }
+        .tutorial-btn {
+            padding: 12px 30px;
+            background: transparent;
+            border: 1px solid rgba(255,255,255,0.3);
+            color: white;
+            font-size: 11px;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tutorial-btn:hover {
+            background: rgba(255,255,255,0.1);
+        }
+        .tutorial-btn.primary {
+            background: white;
+            color: black;
+        }
+        .tutorial-btn.primary:hover {
+            background: rgba(255,255,255,0.9);
+        }
+        .tutorial-skip {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            color: rgba(255,255,255,0.4);
+            font-size: 11px;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+        .tutorial-skip:hover { color: white; }
+        .tutorial-checkbox {
+            margin-top: 30px;
+            color: rgba(255,255,255,0.5);
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .tutorial-checkbox input {
+            accent-color: white;
+        }
+
+        /* 統計画面 */
+        .stats-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .stats-content {
+            max-width: 500px;
+            width: 90%;
+            text-align: center;
+        }
+        .stats-content h2 {
+            font-size: 24px;
+            font-weight: 200;
+            letter-spacing: 6px;
+            color: white;
+            margin-bottom: 40px;
+        }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stats-card {
+            background: rgba(255,255,255,0.05);
+            padding: 25px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .stats-card-value {
+            font-size: 36px;
+            font-weight: 200;
+            color: white;
+            margin-bottom: 5px;
+        }
+        .stats-card-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.4);
+            letter-spacing: 2px;
+        }
+        .stats-chart {
+            background: rgba(255,255,255,0.03);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .stats-chart-title {
+            font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 2px;
+            margin-bottom: 20px;
+        }
+        .stats-bars {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 100px;
+            gap: 8px;
+        }
+        .stats-bar-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .stats-bar {
+            width: 100%;
+            background: linear-gradient(180deg, rgba(100,200,255,0.6) 0%, rgba(100,150,255,0.3) 100%);
+            border-radius: 3px 3px 0 0;
+            min-height: 2px;
+            transition: height 0.3s;
+        }
+        .stats-bar-label {
+            font-size: 9px;
+            color: rgba(255,255,255,0.4);
+            margin-top: 8px;
+        }
+
+        .hidden { display: none !important; }
+        :fullscreen .ui { transform: scale(0.9); transform-origin: top right; }
+    </style>
+</head>
+<body>
+    <!-- チュートリアル -->
+    <div class="tutorial-overlay hidden" id="tutorialOverlay">
+        <span class="tutorial-skip" id="tutorialSkip" data-i18n="tutorialSkip">スキップ</span>
+        <div class="tutorial-content">
+            <h2 data-i18n="tutorialTitle">VOIDの使い方</h2>
+            <div class="tutorial-steps" id="tutorialSteps"></div>
+            <div class="tutorial-nav">
+                <button class="tutorial-btn" id="tutorialPrev" data-i18n="prev">戻る</button>
+                <div class="tutorial-dots" id="tutorialDots"></div>
+                <button class="tutorial-btn primary" id="tutorialNext" data-i18n="next">次へ</button>
+            </div>
+            <label class="tutorial-checkbox">
+                <input type="checkbox" id="tutorialDontShow">
+                <span data-i18n="dontShowAgain">次回から表示しない</span>
+            </label>
+        </div>
+    </div>
+
+    <!-- 統計画面 -->
+    <div class="stats-overlay hidden" id="statsOverlay">
+        <div class="stats-content">
+            <h2 data-i18n="statsTitle">瞑想の記録</h2>
+            <div class="stats-grid">
+                <div class="stats-card">
+                    <div class="stats-card-value" id="statsTotalTime">0</div>
+                    <div class="stats-card-label" data-i18n="statsTotalMin">累計（分）</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="statsSessions">0</div>
+                    <div class="stats-card-label" data-i18n="statsSessions">セッション数</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="statsStreak">0</div>
+                    <div class="stats-card-label" data-i18n="statsStreak">連続日数</div>
+                </div>
+                <div class="stats-card">
+                    <div class="stats-card-value" id="statsAvg">0</div>
+                    <div class="stats-card-label" data-i18n="statsAvg">平均（分）</div>
+                </div>
+            </div>
+            <div class="stats-chart">
+                <div class="stats-chart-title" data-i18n="statsWeek">過去7日間</div>
+                <div class="stats-bars" id="statsBars"></div>
+            </div>
+            <button class="start-btn" id="statsClose" data-i18n="close">閉じる</button>
+        </div>
+    </div>
+
+    <div class="start-overlay" id="startOverlay">
+        <div class="lang-switch">
+            <button class="lang-btn active" data-lang="ja">日本語</button>
+            <button class="lang-btn" data-lang="en">English</button>
+        </div>
+        <h1>VOID</h1>
+        <p class="tagline" data-i18n="tagline">ジェネラティブ瞑想</p>
+        <button class="start-btn" id="startBtn" data-i18n="start">セッションを開始</button>
+        <p class="total-time" id="totalTimeDisplay">累計瞑想時間: 0分</p>
+        <button class="start-btn" id="statsBtn" style="margin-top:15px;padding:12px 40px;font-size:10px;" data-i18n="viewStats">記録を見る</button>
+        <p class="hint" data-i18n="hint">ヘッドフォン推奨</p>
+    </div>
+
+    <canvas id="canvas"></canvas>
+
+    <div class="breath-guide hidden" id="breathGuide">
+        <div class="breath-ring" id="breathRing"></div>
+        <div class="breath-text" id="breathText">吸う</div>
+    </div>
+
+    <div class="timer-display hidden" id="timerDisplay">00:00</div>
+
+    <div class="session-complete hidden" id="sessionComplete">
+        <h2 data-i18n="complete">セッション完了</h2>
+        <p data-i18n="completeMsg">少し休んでからお戻りください</p>
+        <div class="stats-box">
+            <div class="stat-value" id="sessionDuration">0</div>
+            <div class="stat-label" data-i18n="minutes">分</div>
+        </div>
+        <button class="start-btn" id="continueBtn" data-i18n="continue">続ける</button>
+    </div>
+
+    <div class="ui" id="ui">
+        <button class="btn" id="modeBtn">万華鏡 <span class="key">1-4</span></button>
+        <button class="btn" id="colorBtn">レインボー <span class="key">Q</span></button>
+        <button class="btn" id="musicBtn">アンビエント <span class="key">W</span></button>
+
+        <div class="control-row tooltip">
+            <label data-i18n="freq">周波数</label>
+            <div class="select-row">
+                <button class="select-btn freq-btn active" data-freq="0">Off</button>
+                <button class="select-btn freq-btn" data-freq="40">40Hz</button>
+                <button class="select-btn freq-btn" data-freq="7.83">7.83Hz</button>
+                <button class="select-btn freq-btn" data-freq="6">6Hz</button>
+                <button class="select-btn freq-btn" data-freq="2">2Hz</button>
+            </div>
+            <span class="tooltip-text" id="freqTooltip">周波数を選択してください</span>
+        </div>
+
+        <div class="control-row">
+            <label data-i18n="vol">音量</label>
+            <input type="range" id="volumeSlider" min="0" max="100" value="50">
+        </div>
+        <button class="btn" id="breathBtn" data-i18n-breath="off">呼吸ガイド: オフ <span class="key">B</span></button>
+        <div class="control-row">
+            <label data-i18n="timer">タイマー</label>
+            <div class="select-row">
+                <button class="select-btn timer-btn active" data-time="0">Off</button>
+                <button class="select-btn timer-btn" data-time="5">5m</button>
+                <button class="select-btn timer-btn" data-time="10">10m</button>
+                <button class="select-btn timer-btn" data-time="15">15m</button>
+                <button class="select-btn timer-btn" data-time="20">20m</button>
+            </div>
+        </div>
+        <button class="btn" id="fullscreenBtn" data-i18n="fullscreen">フルスクリーン <span class="key">F</span></button>
+        <button class="btn" id="hideBtn" data-i18n="hide">UI非表示 <span class="key">H</span></button>
+        <button class="btn" id="saveBtn" data-i18n="save">画像保存 <span class="key">S</span></button>
+        <button class="btn" id="shareBtn" data-i18n="share">シェア用画像</button>
+        <button class="btn" id="langBtn">EN / 日本語 <span class="key">L</span></button>
+    </div>
+
+    <div class="info" id="info">マウスで操作 • スクロールでズーム</div>
+    <div class="restore-hint hidden" id="restoreHint">クリックでUI表示</div>
+    <div class="brand">VOID v1.0</div>
+
+    <script>
+        // 多言語テキスト
+        const i18n = {
+            ja: {
+                tagline: 'ジェネラティブ瞑想',
+                start: 'セッションを開始',
+                hint: 'ヘッドフォン推奨',
+                totalTime: '累計瞑想時間: {n}分',
+                complete: 'セッション完了',
+                completeMsg: '少し休んでからお戻りください',
+                minutes: '分',
+                continue: '続ける',
+                freq: '周波数',
+                vol: '音量',
+                timer: 'タイマー',
+                fullscreen: 'フルスクリーン',
+                hide: 'UI非表示',
+                save: '画像保存',
+                share: 'シェア用画像',
+                breathOn: '呼吸ガイド: オン',
+                breathOff: '呼吸ガイド: オフ',
+                inhale: '吸う',
+                hold: '止める',
+                exhale: '吐く',
+                info: 'マウスで操作 • スクロールでズーム',
+                restoreHint: 'クリックでUI表示',
+                modes: ['万華鏡', 'フラクタル', 'ウェーブ', 'ボイド'],
+                colors: ['レインボー', 'モノクロ', 'サイバー', 'ファイア', 'オーシャン', 'オーロラ'],
+                music: ['アンビエント', 'ミニマル', 'エスニック', 'ダーク', 'ドリーム'],
+                freqInfo: {
+                    0: '周波数オフ',
+                    40: '40Hz ガンマ波：MIT研究でアルツハイマー改善効果が確認。脳の健康に良い影響。',
+                    7.83: '7.83Hz シューマン共振：地球の固有周波数。グラウンディング、安定感。',
+                    6: '6Hz シータ波：深いリラックス、瞑想状態、創造性向上に関連。',
+                    2: '2Hz デルタ波：深い睡眠、回復、ヒーリングに関連。'
+                },
+                viewStats: '記録を見る',
+                statsTitle: '瞑想の記録',
+                statsTotalMin: '累計（分）',
+                statsSessions: 'セッション数',
+                statsStreak: '連続日数',
+                statsAvg: '平均（分）',
+                statsWeek: '過去7日間',
+                close: '閉じる',
+                tutorialTitle: 'VOIDの使い方',
+                tutorialSkip: 'スキップ',
+                prev: '戻る',
+                next: '次へ',
+                begin: '始める',
+                dontShowAgain: '次回から表示しない',
+                days: ['日', '月', '火', '水', '木', '金', '土'],
+                tutorialSteps: [
+                    { icon: '🎨', title: 'ビジュアルモード', desc: '1〜4キーまたはボタンで4種類のジェネラティブアートを切り替え。マウスで操作、スクロールでズーム。' },
+                    { icon: '🎵', title: '音楽と周波数', desc: '5種類の音楽スタイルと科学的根拠のある周波数（40Hz等）を選択。ヘッドフォン推奨。' },
+                    { icon: '🧘', title: '呼吸ガイド', desc: 'Bキーで呼吸ガイドをオン。4秒吸う→4秒止める→6秒吐くのリズムで深いリラックス。' },
+                    { icon: '⏱️', title: 'タイマーと記録', desc: '瞑想タイマーを設定すると、終了時に記録が保存されます。累計時間や連続日数を確認できます。' },
+                    { icon: '📸', title: '画像保存とシェア', desc: 'Sキーで現在のアートを保存。シェア用画像ボタンでSNS投稿用の画像を生成できます。' }
+                ]
+            },
+            en: {
+                tagline: 'Generative Meditation',
+                start: 'Begin Session',
+                hint: 'Use headphones for best experience',
+                totalTime: 'Total meditation: {n} min',
+                complete: 'Session Complete',
+                completeMsg: 'Take a moment before returning',
+                minutes: 'Minutes',
+                continue: 'Continue',
+                freq: 'Freq',
+                vol: 'Vol',
+                timer: 'Timer',
+                fullscreen: 'Fullscreen',
+                hide: 'Hide UI',
+                save: 'Save Image',
+                share: 'Share Image',
+                breathOn: 'Breathing: On',
+                breathOff: 'Breathing: Off',
+                inhale: 'Inhale',
+                hold: 'Hold',
+                exhale: 'Exhale',
+                info: 'Move mouse to interact • Scroll to zoom',
+                restoreHint: 'Click anywhere to show UI',
+                modes: ['Kaleidoscope', 'Fractal', 'Wave', 'Void'],
+                colors: ['Rainbow', 'Mono', 'Cyber', 'Fire', 'Ocean', 'Aurora'],
+                music: ['Ambient', 'Minimal', 'Ethnic', 'Dark', 'Dream'],
+                freqInfo: {
+                    0: 'Frequency off',
+                    40: '40Hz Gamma: MIT research shows benefits for Alzheimer\'s. Promotes brain health.',
+                    7.83: '7.83Hz Schumann Resonance: Earth\'s natural frequency. Grounding, stability.',
+                    6: '6Hz Theta: Deep relaxation, meditation, creativity enhancement.',
+                    2: '2Hz Delta: Deep sleep, recovery, healing.'
+                },
+                viewStats: 'View Stats',
+                statsTitle: 'Meditation Log',
+                statsTotalMin: 'Total (min)',
+                statsSessions: 'Sessions',
+                statsStreak: 'Streak (days)',
+                statsAvg: 'Average (min)',
+                statsWeek: 'Last 7 Days',
+                close: 'Close',
+                tutorialTitle: 'How to Use VOID',
+                tutorialSkip: 'Skip',
+                prev: 'Back',
+                next: 'Next',
+                begin: 'Begin',
+                dontShowAgain: 'Don\'t show again',
+                days: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+                tutorialSteps: [
+                    { icon: '🎨', title: 'Visual Modes', desc: 'Press 1-4 or use buttons to switch between 4 generative art styles. Move mouse to interact, scroll to zoom.' },
+                    { icon: '🎵', title: 'Music & Frequency', desc: 'Choose from 5 music styles and science-backed frequencies (40Hz, etc). Headphones recommended.' },
+                    { icon: '🧘', title: 'Breathing Guide', desc: 'Press B to enable breathing guide. Follow the rhythm: 4s inhale → 4s hold → 6s exhale for deep relaxation.' },
+                    { icon: '⏱️', title: 'Timer & Tracking', desc: 'Set a meditation timer and your sessions will be logged. Track total time and daily streaks.' },
+                    { icon: '📸', title: 'Save & Share', desc: 'Press S to save current art. Use Share Image button to create images for social media.' }
+                ]
+            }
+        };
+
+        let currentLang = localStorage.getItem('voidLang') || 'ja';
+
+        function updateLanguage() {
+            const t = i18n[currentLang];
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.dataset.i18n;
+                if (t[key]) el.textContent = t[key];
+            });
+            document.getElementById('info').textContent = t.info;
+            document.getElementById('restoreHint').textContent = t.restoreHint;
+            document.getElementById('totalTimeDisplay').textContent = t.totalTime.replace('{n}', totalMeditationTime);
+            document.getElementById('breathBtn').innerHTML = (breathingEnabled ? t.breathOn : t.breathOff) + ' <span class="key">B</span>';
+            document.getElementById('modeBtn').innerHTML = t.modes[currentMode] + ' <span class="key">1-4</span>';
+            document.getElementById('colorBtn').innerHTML = t.colors[currentColor] + ' <span class="key">Q</span>';
+            document.getElementById('musicBtn').innerHTML = t.music[currentMusic] + ' <span class="key">W</span>';
+            updateFreqTooltip();
+            document.querySelectorAll('.lang-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.lang === currentLang);
+            });
+            localStorage.setItem('voidLang', currentLang);
+        }
+
+        function updateFreqTooltip() {
+            const t = i18n[currentLang];
+            document.getElementById('freqTooltip').textContent = t.freqInfo[currentFreq] || t.freqInfo[0];
+        }
+
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height, centerX, centerY;
+        let time = 0;
+        let mouseX = 0, mouseY = 0;
+        let zoom = 1;
+        let breathPhase = 0;
+        let audioCtx, masterGain;
+
+        const modes = ['kaleidoscope', 'fractal', 'wave', 'void'];
+        let currentMode = 0;
+
+        const colors = ['rainbow', 'mono', 'cyber', 'fire', 'ocean', 'aurora'];
+        let currentColor = 0;
+
+        const musicStyles = ['ambient', 'minimal', 'ethnic', 'dark', 'dream'];
+        let currentMusic = 0;
+
+        // 周波数設定（科学的根拠あり）
+        let currentFreq = 0;
+        let freqOscillators = [];
+
+        let breathingEnabled = false;
+        let timerDuration = 0;
+        let timerRemaining = 0;
+        let timerInterval = null;
+
+        let totalMeditationTime = parseInt(localStorage.getItem('voidTotalTime') || '0');
+        let sessionHistory = JSON.parse(localStorage.getItem('voidHistory') || '[]');
+        let lastSessionDate = localStorage.getItem('voidLastDate') || '';
+        let streakDays = parseInt(localStorage.getItem('voidStreak') || '0');
+
+        // 統計表示関数（早期定義）
+        function updateStatsDisplay() {
+            const t = i18n[currentLang];
+            const sessions = sessionHistory.length;
+            const avg = sessions > 0 ? Math.round(totalMeditationTime / sessions) : 0;
+
+            document.getElementById('statsTotalTime').textContent = totalMeditationTime;
+            document.getElementById('statsSessions').textContent = sessions;
+            document.getElementById('statsStreak').textContent = streakDays;
+            document.getElementById('statsAvg').textContent = avg;
+
+            const barsEl = document.getElementById('statsBars');
+            const now = new Date();
+            const dayData = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(now);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                const dayMinutes = sessionHistory
+                    .filter(s => s.date === dateStr)
+                    .reduce((sum, s) => sum + s.duration, 0);
+                dayData.push({ day: date.getDay(), minutes: dayMinutes });
+            }
+
+            const maxMin = Math.max(...dayData.map(d => d.minutes), 1);
+            barsEl.innerHTML = dayData.map(d => `
+                <div class="stats-bar-col">
+                    <div class="stats-bar" style="height: ${(d.minutes / maxMin) * 80}px"></div>
+                    <div class="stats-bar-label">${t.days[d.day]}</div>
+                </div>
+            `).join('');
+        }
+
+        const permutation = new Uint8Array(512);
+        for (let i = 0; i < 256; i++) permutation[i] = permutation[i + 256] = Math.floor(Math.random() * 256);
+
+        function noise2D(x, y) {
+            const xi = Math.floor(x) & 255;
+            const yi = Math.floor(y) & 255;
+            const xf = x - Math.floor(x);
+            const yf = y - Math.floor(y);
+            const u = xf * xf * (3 - 2 * xf);
+            const v = yf * yf * (3 - 2 * yf);
+            const a = permutation[xi] + yi;
+            const b = permutation[xi + 1] + yi;
+            const aa = permutation[a] / 255;
+            const ab = permutation[a + 1] / 255;
+            const ba = permutation[b] / 255;
+            const bb = permutation[b + 1] / 255;
+            return (aa + u * (ba - aa) + v * (ab - aa + u * (aa - ba - ab + bb))) * 2 - 1;
+        }
+
+        function fbm(x, y) {
+            return noise2D(x, y) * 0.6 + noise2D(x * 2, y * 2) * 0.3 + noise2D(x * 4, y * 4) * 0.1;
+        }
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            centerX = width / 2;
+            centerY = height / 2;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        function getColor(t, v) {
+            const breathMod = breathingEnabled ? 0.7 + breathPhase * 0.3 : 1;
+            const lMod = breathMod;
+            switch(colors[currentColor]) {
+                case 'rainbow': return [t * 360, 70, (50 + v * 30) * lMod];
+                case 'mono': return [0, 0, v * 100 * lMod];
+                case 'cyber': return [180 + Math.sin(t * 6.28) * 40, 100, (50 + v * 40) * lMod];
+                case 'fire': return [v * 60, 100, (50 + v * 30) * lMod];
+                case 'ocean': return [200 + v * 40, 60 + v * 30, (40 + v * 30) * lMod];
+                case 'aurora': return [120 + Math.sin(t * 3) * 60 + v * 60, 70, (40 + v * 40) * lMod];
+            }
+        }
+
+        function hslToRgb(h, s, l) {
+            h /= 360; s /= 100; l /= 100;
+            if (s === 0) return [l * 255, l * 255, l * 255];
+            const hue2rgb = (p, q, t) => {
+                if (t < 0) t += 1;
+                if (t > 1) t -= 1;
+                if (t < 1/6) return p + (q - p) * 6 * t;
+                if (t < 1/2) return q;
+                if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+                return p;
+            };
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+            return [hue2rgb(p, q, h + 1/3) * 255, hue2rgb(p, q, h) * 255, hue2rgb(p, q, h - 1/3) * 255];
+        }
+
+        function draw() {
+            const t = time * 0.001;
+            const mx = (mouseX - centerX) / width;
+            const my = (mouseY - centerY) / height;
+            const imageData = ctx.createImageData(width, height);
+            const data = imageData.data;
+            const step = 4;
+            const scale = 200 / zoom;
+
+            for (let y = 0; y < height; y += step) {
+                for (let x = 0; x < width; x += step) {
+                    let value = 0;
+                    const dx = (x - centerX) / scale;
+                    const dy = (y - centerY) / scale;
+
+                    switch(modes[currentMode]) {
+                        case 'kaleidoscope': {
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            let angle = Math.atan2(dy, dx);
+                            const seg = Math.PI / 4;
+                            angle = Math.abs((angle % seg + seg) % seg);
+                            value = fbm(Math.cos(angle) * dist + mx + t, Math.sin(angle) * dist + my + t * 0.7);
+                            break;
+                        }
+                        case 'fractal': {
+                            value = fbm(dx + mx + t * 0.3, dy + my + t * 0.2);
+                            value = Math.sin(value * 5 + t * 2);
+                            break;
+                        }
+                        case 'wave': {
+                            const w1 = Math.sin(dx * 5 + t + mx * 3);
+                            const w2 = Math.sin(dy * 5 + t * 1.3 + my * 3);
+                            value = (w1 + w2) * 0.5 + fbm(dx + t, dy + t) * 0.5;
+                            break;
+                        }
+                        case 'void': {
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+                            const angle = Math.atan2(dy, dx) + dist * 0.3 + t;
+                            value = Math.sin(dist * 2 - t * 3) * 0.5 + noise2D(Math.cos(angle) * dist, Math.sin(angle) * dist + t) * 0.5;
+                            break;
+                        }
+                    }
+
+                    value = (value + 1) / 2;
+                    const [h, s, l] = getColor((value + t * 0.1) % 1, value);
+                    const [r, g, b] = hslToRgb(h, s, l);
+
+                    for (let py = 0; py < step && y + py < height; py++) {
+                        for (let px = 0; px < step && x + px < width; px++) {
+                            const i = ((y + py) * width + (x + px)) * 4;
+                            data[i] = r;
+                            data[i + 1] = g;
+                            data[i + 2] = b;
+                            data[i + 3] = 255;
+                        }
+                    }
+                }
+            }
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // 呼吸ガイド
+        let breathState = 'inhale';
+        let breathTimer = 0;
+        const INHALE_TIME = 4000, HOLD_TIME = 4000, EXHALE_TIME = 6000;
+
+        function updateBreathing(dt) {
+            if (!breathingEnabled) return;
+            const t = i18n[currentLang];
+            breathTimer += dt;
+            const ring = document.getElementById('breathRing');
+            const text = document.getElementById('breathText');
+
+            if (breathState === 'inhale') {
+                breathPhase = breathTimer / INHALE_TIME;
+                if (breathTimer >= INHALE_TIME) {
+                    breathState = 'hold';
+                    breathTimer = 0;
+                    ring.className = 'breath-ring hold';
+                    text.textContent = t.hold;
+                }
+            } else if (breathState === 'hold') {
+                breathPhase = 1;
+                if (breathTimer >= HOLD_TIME) {
+                    breathState = 'exhale';
+                    breathTimer = 0;
+                    ring.className = 'breath-ring exhale';
+                    text.textContent = t.exhale;
+                }
+            } else if (breathState === 'exhale') {
+                breathPhase = 1 - (breathTimer / EXHALE_TIME);
+                if (breathTimer >= EXHALE_TIME) {
+                    breathState = 'inhale';
+                    breathTimer = 0;
+                    ring.className = 'breath-ring inhale';
+                    text.textContent = t.inhale;
+                }
+            }
+        }
+
+        function toggleBreathing() {
+            breathingEnabled = !breathingEnabled;
+            const guide = document.getElementById('breathGuide');
+            const btn = document.getElementById('breathBtn');
+            const t = i18n[currentLang];
+
+            if (breathingEnabled) {
+                guide.classList.remove('hidden');
+                btn.innerHTML = t.breathOn + ' <span class="key">B</span>';
+                btn.classList.add('active');
+                breathState = 'inhale';
+                breathTimer = 0;
+                document.getElementById('breathRing').className = 'breath-ring inhale';
+                document.getElementById('breathText').textContent = t.inhale;
+            } else {
+                guide.classList.add('hidden');
+                btn.innerHTML = t.breathOff + ' <span class="key">B</span>';
+                btn.classList.remove('active');
+                breathPhase = 0;
+            }
+        }
+
+        // 周波数設定
+        function setFrequency(freq) {
+            currentFreq = freq;
+            document.querySelectorAll('.freq-btn').forEach(btn => {
+                btn.classList.toggle('active', parseFloat(btn.dataset.freq) === freq);
+            });
+            updateFreqTooltip();
+
+            // 既存の周波数オシレーターを停止
+            freqOscillators.forEach(o => {
+                try { o.osc.stop(); } catch(e) {}
+            });
+            freqOscillators = [];
+
+            if (!audioCtx || freq === 0) return;
+
+            // バイノーラルビート生成（左右の耳に微妙に異なる周波数）
+            // 40Hzの場合: 左200Hz + 右240Hz = 40Hzのビート
+            const baseFreq = 200;
+            const leftFreq = baseFreq;
+            const rightFreq = baseFreq + freq;
+
+            const merger = audioCtx.createChannelMerger(2);
+
+            // 左チャンネル
+            const oscL = audioCtx.createOscillator();
+            const gainL = audioCtx.createGain();
+            oscL.frequency.value = leftFreq;
+            oscL.type = 'sine';
+            gainL.gain.value = 0.08;
+            oscL.connect(gainL);
+            gainL.connect(merger, 0, 0);
+
+            // 右チャンネル
+            const oscR = audioCtx.createOscillator();
+            const gainR = audioCtx.createGain();
+            oscR.frequency.value = rightFreq;
+            oscR.type = 'sine';
+            gainR.gain.value = 0.08;
+            oscR.connect(gainR);
+            gainR.connect(merger, 0, 1);
+
+            merger.connect(masterGain);
+            oscL.start();
+            oscR.start();
+
+            freqOscillators.push({ osc: oscL, gain: gainL }, { osc: oscR, gain: gainR });
+        }
+
+        // タイマー
+        function setTimer(minutes) {
+            timerDuration = minutes;
+            timerRemaining = minutes * 60;
+            document.querySelectorAll('.timer-btn').forEach(btn => {
+                btn.classList.toggle('active', parseInt(btn.dataset.time) === minutes);
+            });
+
+            const timerDisplay = document.getElementById('timerDisplay');
+            if (minutes > 0) {
+                timerDisplay.classList.remove('hidden');
+                updateTimerDisplay();
+                if (timerInterval) clearInterval(timerInterval);
+                timerInterval = setInterval(() => {
+                    timerRemaining--;
+                    updateTimerDisplay();
+                    if (timerRemaining <= 0) completeSession();
+                }, 1000);
+            } else {
+                timerDisplay.classList.add('hidden');
+                if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+            }
+        }
+
+        function updateTimerDisplay() {
+            const mins = Math.floor(timerRemaining / 60);
+            const secs = timerRemaining % 60;
+            document.getElementById('timerDisplay').textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function completeSession() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            playCompletionSound();
+            totalMeditationTime += timerDuration;
+            localStorage.setItem('voidTotalTime', totalMeditationTime.toString());
+            recordSession(timerDuration);
+            document.getElementById('sessionDuration').textContent = timerDuration;
+            document.getElementById('sessionComplete').classList.remove('hidden');
+            timerDuration = 0;
+            document.getElementById('timerDisplay').classList.add('hidden');
+            document.querySelectorAll('.timer-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.time === '0');
+            });
+        }
+
+        function playCompletionSound() {
+            if (!audioCtx) return;
+            const freqs = [261.63, 329.63, 392, 523.25];
+            freqs.forEach((freq, i) => {
+                setTimeout(() => {
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.value = freq;
+                    const now = audioCtx.currentTime;
+                    gain.gain.setValueAtTime(0, now);
+                    gain.gain.linearRampToValueAtTime(0.15, now + 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 4);
+                    osc.connect(gain);
+                    gain.connect(reverb);
+                    gain.connect(masterGain);
+                    osc.start(now);
+                    osc.stop(now + 4);
+                }, i * 500);
+            });
+        }
+
+        // オーディオ
+        let reverb, delay, droneGain;
+        const styleChords = {
+            ambient: [[220, 277.18, 329.63], [196, 246.94, 293.66], [174.61, 220, 261.63], [164.81, 207.65, 261.63]],
+            minimal: [[261.63, 329.63, 392], [261.63, 329.63, 392], [293.66, 369.99, 440], [261.63, 329.63, 392]],
+            ethnic: [[220, 293.66, 329.63], [196, 261.63, 293.66], [174.61, 233.08, 293.66], [220, 293.66, 329.63]],
+            dark: [[110, 138.59, 164.81], [103.83, 130.81, 155.56], [98, 123.47, 146.83], [110, 138.59, 164.81]],
+            dream: [[293.66, 369.99, 440], [261.63, 329.63, 392], [349.23, 440, 523.25], [293.66, 369.99, 440]]
+        };
+        const styleScales = {
+            ambient: [1, 1.125, 1.25, 1.333, 1.5, 1.667, 1.875],
+            minimal: [1, 1.189, 1.335, 1.498, 1.682, 1.888],
+            ethnic: [1, 1.122, 1.26, 1.335, 1.498, 1.682, 1.782],
+            dark: [1, 1.059, 1.189, 1.26, 1.414, 1.498, 1.682],
+            dream: [1, 1.189, 1.335, 1.498, 1.682, 2, 2.378]
+        };
+        let currentChord = 0, arpIndex = 0;
+
+        function initAudio() {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            masterGain = audioCtx.createGain();
+            masterGain.gain.value = 0.25;
+
+            reverb = audioCtx.createConvolver();
+            const len = audioCtx.sampleRate * 3;
+            const impulse = audioCtx.createBuffer(2, len, audioCtx.sampleRate);
+            for (let ch = 0; ch < 2; ch++) {
+                const d = impulse.getChannelData(ch);
+                for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2);
+            }
+            reverb.buffer = impulse;
+
+            delay = audioCtx.createDelay(1);
+            delay.delayTime.value = 0.4;
+            const delayFeedback = audioCtx.createGain();
+            delayFeedback.gain.value = 0.3;
+            const delayFilter = audioCtx.createBiquadFilter();
+            delayFilter.type = 'lowpass';
+            delayFilter.frequency.value = 1500;
+            delay.connect(delayFilter);
+            delayFilter.connect(delayFeedback);
+            delayFeedback.connect(delay);
+
+            const reverbGain = audioCtx.createGain();
+            reverbGain.gain.value = 0.5;
+            const delayGain = audioCtx.createGain();
+            delayGain.gain.value = 0.3;
+            reverb.connect(reverbGain);
+            delay.connect(delayGain);
+            reverbGain.connect(masterGain);
+            delayGain.connect(masterGain);
+            masterGain.connect(audioCtx.destination);
+
+            droneGain = audioCtx.createGain();
+            droneGain.gain.value = 0.04;
+            const bassDrone = audioCtx.createOscillator();
+            const bassFilter = audioCtx.createBiquadFilter();
+            const bassLfo = audioCtx.createOscillator();
+            const bassLfoGain = audioCtx.createGain();
+            bassDrone.type = 'sine';
+            bassDrone.frequency.value = 55;
+            bassLfo.type = 'sine';
+            bassLfo.frequency.value = 0.02;
+            bassLfoGain.gain.value = 3;
+            bassFilter.type = 'lowpass';
+            bassFilter.frequency.value = 150;
+            bassLfo.connect(bassLfoGain);
+            bassLfoGain.connect(bassDrone.frequency);
+            bassDrone.connect(bassFilter);
+            bassFilter.connect(droneGain);
+            droneGain.connect(reverb);
+            droneGain.connect(masterGain);
+            bassDrone.start();
+            bassLfo.start();
+
+            startPadLoop();
+            startArpeggio();
+            canvas.addEventListener('mousemove', playReactiveSound);
+            document.getElementById('volumeSlider').addEventListener('input', (e) => {
+                masterGain.gain.value = e.target.value / 100 * 0.5;
+            });
+        }
+
+        function getChords() { return styleChords[musicStyles[currentMusic]]; }
+        function getScale() { return styleScales[musicStyles[currentMusic]]; }
+
+        function playPadNote(freq, duration) {
+            const style = musicStyles[currentMusic];
+            const osc1 = audioCtx.createOscillator();
+            const osc2 = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            osc1.type = style === 'dark' ? 'sawtooth' : 'sine';
+            osc2.type = style === 'ethnic' ? 'square' : 'triangle';
+            osc1.frequency.value = freq;
+            osc2.frequency.value = freq * (style === 'minimal' ? 2 : 1.002);
+            filter.type = 'lowpass';
+            filter.frequency.value = style === 'dark' ? freq * 1.5 : freq * 3;
+            const now = audioCtx.currentTime;
+            const attack = style === 'minimal' ? 0.01 : 1;
+            const vol = style === 'dark' ? 0.04 : 0.06;
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(vol, now + attack);
+            gain.gain.linearRampToValueAtTime(vol * 0.6, now + duration - 1);
+            gain.gain.linearRampToValueAtTime(0, now + duration);
+            const gain2 = audioCtx.createGain();
+            gain2.gain.value = style === 'ethnic' ? 0.15 : 0.4;
+            osc1.connect(gain);
+            osc2.connect(gain2);
+            gain2.connect(gain);
+            gain.connect(filter);
+            filter.connect(reverb);
+            osc1.start(now);
+            osc2.start(now);
+            osc1.stop(now + duration);
+            osc2.stop(now + duration);
+        }
+
+        function startPadLoop() {
+            const playChord = () => {
+                const chords = getChords();
+                const chord = chords[currentChord % chords.length];
+                const style = musicStyles[currentMusic];
+                const duration = style === 'minimal' ? 4 : 8;
+                chord.forEach(freq => playPadNote(freq, duration));
+                currentChord++;
+                setTimeout(playChord, duration * 1000);
+            };
+            playChord();
+        }
+
+        function playArpNote(freq) {
+            const style = musicStyles[currentMusic];
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const filter = audioCtx.createBiquadFilter();
+            osc.type = style === 'ethnic' ? 'square' : 'sine';
+            osc.frequency.value = freq * (style === 'dark' ? 1 : 2);
+            filter.type = style === 'dark' ? 'lowpass' : 'bandpass';
+            filter.frequency.value = freq * (style === 'dark' ? 2 : 4);
+            filter.Q.value = style === 'ethnic' ? 5 : 2;
+            const now = audioCtx.currentTime;
+            const vol = style === 'minimal' ? 0.12 : 0.08;
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(vol, now + 0.01);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
+            osc.connect(filter);
+            filter.connect(gain);
+            gain.connect(delay);
+            gain.connect(reverb);
+            osc.start(now);
+            osc.stop(now + 1.5);
+        }
+
+        function startArpeggio() {
+            const playArp = () => {
+                const style = musicStyles[currentMusic];
+                const chords = getChords();
+                const scale = getScale();
+                const baseFreq = chords[currentChord % chords.length][0];
+                const note = baseFreq * scale[arpIndex % scale.length];
+                const modulation = 1 + (mouseY / height - 0.5) * 0.1;
+                playArpNote(note * modulation);
+                arpIndex++;
+                const baseSpeed = style === 'minimal' ? 200 : style === 'ethnic' ? 150 : style === 'dream' ? 400 : 300;
+                setTimeout(playArp, baseSpeed + (1 - mouseX / width) * 400);
+            };
+            setTimeout(playArp, 500);
+        }
+
+        let lastSoundTime = 0;
+        function playReactiveSound() {
+            if (!audioCtx || Date.now() - lastSoundTime < 200) return;
+            lastSoundTime = Date.now();
+            const chords = getChords();
+            const chord = chords[currentChord % chords.length];
+            const baseFreq = chord[Math.floor(Math.random() * chord.length)];
+            const freq = baseFreq * (2 + Math.floor(mouseX / width * 2));
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const now = audioCtx.currentTime;
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.03, now + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, now + 1);
+            osc.connect(gain);
+            gain.connect(delay);
+            gain.connect(reverb);
+            osc.start(now);
+            osc.stop(now + 1);
+        }
+
+        // イベント
+        canvas.addEventListener('mousemove', (e) => { mouseX = e.clientX; mouseY = e.clientY; });
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            mouseX = e.touches[0].clientX;
+            mouseY = e.touches[0].clientY;
+        }, { passive: false });
+        canvas.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            zoom *= e.deltaY > 0 ? 0.95 : 1.05;
+            zoom = Math.max(0.5, Math.min(3, zoom));
+        }, { passive: false });
+
+        // ボタン
+        const modeBtn = document.getElementById('modeBtn');
+        const colorBtn = document.getElementById('colorBtn');
+        const musicBtn = document.getElementById('musicBtn');
+
+        modeBtn.addEventListener('click', () => {
+            currentMode = (currentMode + 1) % modes.length;
+            modeBtn.innerHTML = i18n[currentLang].modes[currentMode] + ' <span class="key">1-4</span>';
+        });
+        colorBtn.addEventListener('click', () => {
+            currentColor = (currentColor + 1) % colors.length;
+            colorBtn.innerHTML = i18n[currentLang].colors[currentColor] + ' <span class="key">Q</span>';
+        });
+        musicBtn.addEventListener('click', () => {
+            currentMusic = (currentMusic + 1) % musicStyles.length;
+            musicBtn.innerHTML = i18n[currentLang].music[currentMusic] + ' <span class="key">W</span>';
+        });
+
+        document.getElementById('breathBtn').addEventListener('click', toggleBreathing);
+        document.querySelectorAll('.timer-btn').forEach(btn => {
+            btn.addEventListener('click', () => setTimer(parseInt(btn.dataset.time)));
+        });
+        document.querySelectorAll('.freq-btn').forEach(btn => {
+            btn.addEventListener('click', () => setFrequency(parseFloat(btn.dataset.freq)));
+        });
+        document.getElementById('fullscreenBtn').addEventListener('click', toggleFullscreen);
+        document.getElementById('hideBtn').addEventListener('click', toggleUI);
+        document.getElementById('saveBtn').addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = `void-${Date.now()}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        });
+        document.getElementById('startBtn').addEventListener('click', () => {
+            const skipTutorial = localStorage.getItem('voidSkipTutorial') === 'true';
+            if (!skipTutorial) {
+                showTutorial();
+            } else {
+                document.getElementById('startOverlay').classList.add('hidden');
+                initAudio();
+            }
+        });
+        document.getElementById('continueBtn').addEventListener('click', () => {
+            document.getElementById('sessionComplete').classList.add('hidden');
+        });
+        document.getElementById('statsBtn').addEventListener('click', () => {
+            updateStatsDisplay();
+            document.getElementById('statsOverlay').classList.remove('hidden');
+        });
+        document.getElementById('statsClose').addEventListener('click', () => {
+            document.getElementById('statsOverlay').classList.add('hidden');
+        });
+        document.getElementById('shareBtn').addEventListener('click', () => {
+            const shareCanvas = document.createElement('canvas');
+            shareCanvas.width = 1200;
+            shareCanvas.height = 630;
+            const sCtx = shareCanvas.getContext('2d');
+            sCtx.drawImage(canvas, 0, 0, shareCanvas.width, shareCanvas.height);
+            sCtx.fillStyle = 'rgba(0,0,0,0.4)';
+            sCtx.fillRect(0, 0, shareCanvas.width, shareCanvas.height);
+            sCtx.fillStyle = 'white';
+            sCtx.font = '200 72px Segoe UI, sans-serif';
+            sCtx.textAlign = 'center';
+            sCtx.fillText('VOID', shareCanvas.width / 2, shareCanvas.height / 2 - 20);
+            const t = i18n[currentLang];
+            sCtx.font = '300 18px Segoe UI, sans-serif';
+            sCtx.fillStyle = 'rgba(255,255,255,0.7)';
+            sCtx.fillText(t.tagline, shareCanvas.width / 2, shareCanvas.height / 2 + 30);
+            if (totalMeditationTime > 0) {
+                sCtx.font = '200 14px Segoe UI, sans-serif';
+                sCtx.fillStyle = 'rgba(255,255,255,0.5)';
+                sCtx.fillText(t.totalTime.replace('{n}', totalMeditationTime), shareCanvas.width / 2, shareCanvas.height / 2 + 70);
+            }
+            const link = document.createElement('a');
+            link.download = `void-share-${Date.now()}.png`;
+            link.href = shareCanvas.toDataURL('image/png');
+            link.click();
+        });
+
+        // 言語切り替え
+        document.querySelectorAll('.lang-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                currentLang = btn.dataset.lang;
+                updateLanguage();
+            });
+        });
+        document.getElementById('langBtn').addEventListener('click', () => {
+            currentLang = currentLang === 'ja' ? 'en' : 'ja';
+            updateLanguage();
+        });
+
+        // キーボード
+        document.addEventListener('keydown', (e) => {
+            if (e.key >= '1' && e.key <= '4') {
+                currentMode = parseInt(e.key) - 1;
+                modeBtn.innerHTML = i18n[currentLang].modes[currentMode] + ' <span class="key">1-4</span>';
+            }
+            if (e.key.toLowerCase() === 'q') {
+                currentColor = (currentColor + 1) % colors.length;
+                colorBtn.innerHTML = i18n[currentLang].colors[currentColor] + ' <span class="key">Q</span>';
+            }
+            if (e.key.toLowerCase() === 'w') {
+                currentMusic = (currentMusic + 1) % musicStyles.length;
+                musicBtn.innerHTML = i18n[currentLang].music[currentMusic] + ' <span class="key">W</span>';
+            }
+            if (e.key.toLowerCase() === 'b') toggleBreathing();
+            if (e.key.toLowerCase() === 'f') toggleFullscreen();
+            if (e.key.toLowerCase() === 'h') toggleUI();
+            if (e.key.toLowerCase() === 'l') {
+                currentLang = currentLang === 'ja' ? 'en' : 'ja';
+                updateLanguage();
+            }
+            if (e.key.toLowerCase() === 's' && !e.ctrlKey) {
+                e.preventDefault();
+                document.getElementById('saveBtn').click();
+            }
+        });
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) document.documentElement.requestFullscreen();
+            else document.exitFullscreen();
+        }
+
+        let uiHidden = false;
+        function toggleUI() {
+            uiHidden = !uiHidden;
+            document.getElementById('ui').style.opacity = uiHidden ? '0' : '0.8';
+            document.getElementById('ui').style.pointerEvents = uiHidden ? 'none' : 'auto';
+            document.getElementById('info').classList.toggle('hide', uiHidden);
+            document.querySelector('.brand').style.opacity = uiHidden ? '0' : '0.15';
+            const hint = document.getElementById('restoreHint');
+            if (uiHidden) {
+                hint.classList.remove('hidden');
+                hint.style.animation = 'none';
+                hint.offsetHeight;
+                hint.style.animation = 'fadeInOut 3s ease-in-out';
+                setTimeout(() => hint.classList.add('hidden'), 3000);
+            }
+        }
+
+        canvas.addEventListener('click', () => { if (uiHidden) toggleUI(); });
+
+        // チュートリアル
+        let tutorialPage = 0;
+        function showTutorial() {
+            tutorialPage = 0;
+            document.getElementById('tutorialOverlay').classList.remove('hidden');
+            renderTutorial();
+        }
+
+        function renderTutorial() {
+            const t = i18n[currentLang];
+            const steps = t.tutorialSteps;
+            const stepsEl = document.getElementById('tutorialSteps');
+            const dotsEl = document.getElementById('tutorialDots');
+            const step = steps[tutorialPage];
+
+            stepsEl.innerHTML = `
+                <div class="tutorial-step">
+                    <div class="tutorial-step-icon">${step.icon}</div>
+                    <div class="tutorial-step-text">
+                        <strong>${step.title}</strong>
+                        ${step.desc}
+                    </div>
+                </div>
+            `;
+
+            dotsEl.innerHTML = steps.map((_, i) =>
+                `<div class="tutorial-dot ${i === tutorialPage ? 'active' : ''}" data-page="${i}"></div>`
+            ).join('');
+
+            document.querySelectorAll('.tutorial-dot').forEach(dot => {
+                dot.addEventListener('click', () => {
+                    tutorialPage = parseInt(dot.dataset.page);
+                    renderTutorial();
+                });
+            });
+
+            const prevBtn = document.getElementById('tutorialPrev');
+            const nextBtn = document.getElementById('tutorialNext');
+            prevBtn.style.visibility = tutorialPage === 0 ? 'hidden' : 'visible';
+            nextBtn.textContent = tutorialPage === steps.length - 1 ? t.begin : t.next;
+        }
+
+        document.getElementById('tutorialPrev').addEventListener('click', () => {
+            if (tutorialPage > 0) { tutorialPage--; renderTutorial(); }
+        });
+        document.getElementById('tutorialNext').addEventListener('click', () => {
+            const t = i18n[currentLang];
+            if (tutorialPage < t.tutorialSteps.length - 1) {
+                tutorialPage++;
+                renderTutorial();
+            } else {
+                closeTutorial();
+            }
+        });
+        document.getElementById('tutorialSkip').addEventListener('click', closeTutorial);
+
+        function closeTutorial() {
+            if (document.getElementById('tutorialDontShow').checked) {
+                localStorage.setItem('voidSkipTutorial', 'true');
+            }
+            document.getElementById('tutorialOverlay').classList.add('hidden');
+            document.getElementById('startOverlay').classList.add('hidden');
+            initAudio();
+        }
+
+        // 統計
+        function showStats() {
+            updateStatsDisplay();
+            document.getElementById('statsOverlay').classList.remove('hidden');
+        }
+
+        function updateStatsDisplay() {
+            const t = i18n[currentLang];
+            const sessions = sessionHistory.length;
+            const avg = sessions > 0 ? Math.round(totalMeditationTime / sessions) : 0;
+
+            document.getElementById('statsTotalTime').textContent = totalMeditationTime;
+            document.getElementById('statsSessions').textContent = sessions;
+            document.getElementById('statsStreak').textContent = streakDays;
+            document.getElementById('statsAvg').textContent = avg;
+
+            // 過去7日間のグラフ
+            const barsEl = document.getElementById('statsBars');
+            const now = new Date();
+            const dayData = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(now);
+                date.setDate(date.getDate() - i);
+                const dateStr = date.toISOString().split('T')[0];
+                const dayMinutes = sessionHistory
+                    .filter(s => s.date === dateStr)
+                    .reduce((sum, s) => sum + s.duration, 0);
+                dayData.push({ day: date.getDay(), minutes: dayMinutes });
+            }
+
+            const maxMin = Math.max(...dayData.map(d => d.minutes), 1);
+            barsEl.innerHTML = dayData.map(d => `
+                <div class="stats-bar-col">
+                    <div class="stats-bar" style="height: ${(d.minutes / maxMin) * 80}px"></div>
+                    <div class="stats-bar-label">${t.days[d.day]}</div>
+                </div>
+            `).join('');
+        }
+
+        function recordSession(duration) {
+            const today = new Date().toISOString().split('T')[0];
+            sessionHistory.push({ date: today, duration: duration });
+            localStorage.setItem('voidHistory', JSON.stringify(sessionHistory));
+
+            // 連続日数計算
+            if (lastSessionDate) {
+                const last = new Date(lastSessionDate);
+                const now = new Date(today);
+                const diffDays = Math.floor((now - last) / (1000 * 60 * 60 * 24));
+                if (diffDays === 1) {
+                    streakDays++;
+                } else if (diffDays > 1) {
+                    streakDays = 1;
+                }
+            } else {
+                streakDays = 1;
+            }
+            lastSessionDate = today;
+            localStorage.setItem('voidLastDate', today);
+            localStorage.setItem('voidStreak', streakDays.toString());
+        }
+
+        // シェア用画像生成
+        function createShareImage() {
+            const shareCanvas = document.createElement('canvas');
+            shareCanvas.width = 1200;
+            shareCanvas.height = 630;
+            const sCtx = shareCanvas.getContext('2d');
+
+            // 背景にメインキャンバスをコピー
+            sCtx.drawImage(canvas, 0, 0, shareCanvas.width, shareCanvas.height);
+
+            // オーバーレイ
+            sCtx.fillStyle = 'rgba(0,0,0,0.4)';
+            sCtx.fillRect(0, 0, shareCanvas.width, shareCanvas.height);
+
+            // ロゴ
+            sCtx.fillStyle = 'white';
+            sCtx.font = '200 72px Segoe UI, sans-serif';
+            sCtx.letterSpacing = '20px';
+            sCtx.textAlign = 'center';
+            sCtx.fillText('VOID', shareCanvas.width / 2, shareCanvas.height / 2 - 20);
+
+            // タグライン
+            const t = i18n[currentLang];
+            sCtx.font = '300 18px Segoe UI, sans-serif';
+            sCtx.fillStyle = 'rgba(255,255,255,0.7)';
+            sCtx.fillText(t.tagline, shareCanvas.width / 2, shareCanvas.height / 2 + 30);
+
+            // 統計（あれば）
+            if (totalMeditationTime > 0) {
+                sCtx.font = '200 14px Segoe UI, sans-serif';
+                sCtx.fillStyle = 'rgba(255,255,255,0.5)';
+                sCtx.fillText(t.totalTime.replace('{n}', totalMeditationTime), shareCanvas.width / 2, shareCanvas.height / 2 + 70);
+            }
+
+            // ダウンロード
+            const link = document.createElement('a');
+            link.download = `void-share-${Date.now()}.png`;
+            link.href = shareCanvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // 初期化
+        updateLanguage();
+        mouseX = centerX;
+        mouseY = centerY;
+
+        let lastTime = performance.now();
+        function animate(currentTime) {
+            const dt = currentTime - lastTime;
+            lastTime = currentTime;
+            time++;
+            updateBreathing(dt);
+            draw();
+            requestAnimationFrame(animate);
+        }
+        requestAnimationFrame(animate);
+    </script>
+</body>
+</html>
