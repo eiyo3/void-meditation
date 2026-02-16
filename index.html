@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -273,7 +273,15 @@
             font-size: 12px;
             letter-spacing: 4px;
             color: rgba(255,255,255,0.4);
-            margin-bottom: 60px;
+            margin-bottom: 20px;
+        }
+        .start-overlay .value-prop {
+            font-size: 13px;
+            line-height: 1.6;
+            color: rgba(255,255,255,0.35);
+            max-width: 400px;
+            margin: 0 auto 50px;
+            letter-spacing: 0.5px;
         }
         .start-btn {
             padding: 18px 60px;
@@ -586,6 +594,7 @@
         </div>
         <h1>VOID</h1>
         <p class="tagline" data-i18n="tagline">ジェネラティブ瞑想</p>
+        <p class="value-prop" data-i18n="valueProp">Every session is unique — real-time generated sound & visuals that respond to you</p>
         <button class="start-btn" id="startBtn" data-i18n="start">セッションを開始</button>
         <p class="total-time" id="totalTimeDisplay">累計瞑想時間: 0分</p>
         <button class="start-btn" id="statsBtn" style="margin-top:15px;padding:12px 40px;font-size:10px;" data-i18n="viewStats">記録を見る</button>
@@ -650,6 +659,9 @@
         <button class="btn" id="langBtn">EN / 日本語 <span class="key">L</span></button>
     </div>
 
+    <!-- Buy Me a Coffee -->
+    <a href="https://buymeacoffee.com/eiyo3" target="_blank" id="bmcLink" style="position:fixed;bottom:40px;left:20px;z-index:100;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);padding:8px 16px;border-radius:20px;text-decoration:none;font-size:12px;opacity:0.7;transition:opacity 0.3s;backdrop-filter:blur(10px);" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ Support this project</a>
+
     <div class="info" id="info">マウスで操作 • スクロールでズーム</div>
     <div class="restore-hint hidden" id="restoreHint">クリックでUI表示</div>
     <div class="brand">VOID v1.0</div>
@@ -659,6 +671,7 @@
         const i18n = {
             ja: {
                 tagline: 'ジェネラティブ瞑想',
+                valueProp: '毎回異なるセッション — あなたに反応するリアルタイム生成の音と映像',
                 start: 'セッションを開始',
                 hint: 'ヘッドフォン推奨',
                 totalTime: '累計瞑想時間: {n}分',
@@ -715,6 +728,7 @@
             },
             en: {
                 tagline: 'Generative Meditation',
+                valueProp: 'Every session is unique — real-time generated sound & visuals that respond to you',
                 start: 'Begin Session',
                 hint: 'Use headphones for best experience',
                 totalTime: 'Total meditation: {n} min',
@@ -771,7 +785,14 @@
             }
         };
 
-        let currentLang = localStorage.getItem('voidLang') || 'ja';
+        // Auto-detect language: Japanese for ja speakers, English for everyone else
+        const detectLang = () => {
+            const saved = localStorage.getItem('voidLang');
+            if (saved) return saved;
+            const browserLang = (navigator.language || navigator.userLanguage || '').toLowerCase();
+            return browserLang.startsWith('ja') ? 'ja' : 'en';
+        };
+        let currentLang = detectLang();
 
         function updateLanguage() {
             const t = i18n[currentLang];
@@ -1500,6 +1521,9 @@
             document.getElementById('ui').style.pointerEvents = uiHidden ? 'none' : 'auto';
             document.getElementById('info').classList.toggle('hide', uiHidden);
             document.querySelector('.brand').style.opacity = uiHidden ? '0' : '0.15';
+            const bmcLink = document.getElementById('bmcLink');
+            if (bmcLink) bmcLink.style.opacity = uiHidden ? '0' : '0.7';
+            if (bmcLink) bmcLink.style.pointerEvents = uiHidden ? 'none' : 'auto';
             const hint = document.getElementById('restoreHint');
             if (uiHidden) {
                 hint.classList.remove('hidden');
@@ -1696,7 +1720,5 @@
         }
         requestAnimationFrame(animate);
     </script>
-    <!-- Buy Me a Coffee -->
-<a href="https://buymeacoffee.com/eiyo3" target="_blank" style="position:fixed;bottom:20px;left:20px;z-index:100;background:rgba(0,0,0,0.6);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.8);padding:8px 16px;border-radius:20px;text-decoration:none;font-size:12px;opacity:0.7;transition:opacity 0.3s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'">☕ Support this project</a>
 </body>
 </html>
